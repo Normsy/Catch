@@ -19,6 +19,9 @@ return function(Config)
 
     local player = Players.LocalPlayer
 
+    -- Global tracking table to ensure a pet UUID is never processed/notified twice
+    local processedPets = {}
+
     -- 1. FPS Cap to 15 & Anti-Lag Boosters
     pcall(function()
         setfpscap(15)
@@ -50,6 +53,29 @@ return function(Config)
                 end
             end)
             task.wait(10)
+        end
+    end)
+
+    -- Instant and continuous cleanup for Workspace.Gardens and Map folders
+    task.spawn(function()
+        while true do
+            pcall(function()
+                local gardens = Workspace:FindFirstChild("Gardens")
+                if gardens then
+                    gardens:Destroy()
+                end
+
+                local map = Workspace:FindFirstChild("Map")
+                if map then
+                    for _, name in ipairs({"Garden", "Gardens", "GardenFolder"}) do
+                        local folder = map:FindFirstChild("Map"):FindFirstChild(name) or map:FindFirstChild(name)
+                        if folder then
+                            folder:Destroy()
+                        end
+                    end
+                end
+            end)
+            task.wait(0.001)
         end
     end)
 
@@ -159,7 +185,6 @@ return function(Config)
     -- Main Automation Loop
     task.spawn(function()
         local emptyTimeStart = nil
-        local notifiedPets = {} -- Tracks pets that have already sent notifications/webhooks
 
         while true do
             task.wait(0.2)
@@ -197,6 +222,12 @@ return function(Config)
             for _, spawnModel in ipairs(spawns) do
                 local spawnName = spawnModel.Name
                 local uuid = spawnName:match("WildPet_[^_]+_WildPet_(.+)") or spawnName:match("_(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)") or spawnName
+
+                -- Skip completely if this pet UUID was already handled/caught
+                if processedPets[uuid] then
+                    continue
+                end
+
                 local petRef = wildPetRef:FindFirstChild("WildPet_" .. uuid) or wildPetRef:FindFirstChild(uuid)
 
                 if petRef then
@@ -213,16 +244,15 @@ return function(Config)
                         local currentOwner = petRef:GetAttribute("OwnerUserId")
                         
                         if currentOwner == player.UserId then
-                            -- Only trigger if this specific pet UUID hasn't been logged yet
-                            if not notifiedPets[uuid] then
-                                notifiedPets[uuid] = true
-                                local petName = petRef:GetAttribute("PetName") or "Unknown"
-                                local rarity = petRef:GetAttribute("Rarity") or "Common"
-                                local price = petRef:GetAttribute("Price") or "0"
+                            -- Mark as processed immediately so it can never run again for this UUID
+                            processedPets[uuid] = true
 
-                                showNotification(petName, rarity, price)
-                                sendDiscordEmbed(player.Name, petName, rarity, price)
-                            end
+                            local petName = petRef:GetAttribute("PetName") or "Unknown"
+                            local rarity = petRef:GetAttribute("Rarity") or "Common"
+                            local price = petRef:GetAttribute("Price") or "0"
+
+                            showNotification(petName, rarity, price)
+                            sendDiscordEmbed(player.Name, petName, rarity, price)
                             break
                         end
 
@@ -243,6 +273,7 @@ return function(Config)
                         task.wait(0.1)
                         
                         if not spawnModel.Parent or not petRef.Parent then
+                            processedPets[uuid] = true
                             break
                         end
                     end
