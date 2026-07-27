@@ -159,6 +159,7 @@ return function(Config)
     -- Main Automation Loop
     task.spawn(function()
         local emptyTimeStart = nil
+        local notifiedPets = {} -- Tracks pets that have already sent notifications/webhooks
 
         while true do
             task.wait(0.2)
@@ -212,12 +213,16 @@ return function(Config)
                         local currentOwner = petRef:GetAttribute("OwnerUserId")
                         
                         if currentOwner == player.UserId then
-                            local petName = petRef:GetAttribute("PetName") or "Unknown"
-                            local rarity = petRef:GetAttribute("Rarity") or "Common"
-                            local price = petRef:GetAttribute("Price") or "0"
+                            -- Only trigger if this specific pet UUID hasn't been logged yet
+                            if not notifiedPets[uuid] then
+                                notifiedPets[uuid] = true
+                                local petName = petRef:GetAttribute("PetName") or "Unknown"
+                                local rarity = petRef:GetAttribute("Rarity") or "Common"
+                                local price = petRef:GetAttribute("Price") or "0"
 
-                            showNotification(petName, rarity, price)
-                            sendDiscordEmbed(player.Name, petName, rarity, price)
+                                showNotification(petName, rarity, price)
+                                sendDiscordEmbed(player.Name, petName, rarity, price)
+                            end
                             break
                         end
 
