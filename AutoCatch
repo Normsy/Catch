@@ -12,7 +12,6 @@ return function(Config)
     -- Services
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local StarterGui = game:GetService("StarterGui")
     local HttpService = game:GetService("HttpService")
     local TeleportService = game:GetService("TeleportService")
@@ -63,26 +62,6 @@ return function(Config)
         Legendary = { decimal = 16766720 },
         Mythic = { decimal = 16711680 }
     }
-
-    -- Helper function to check if the pet is officially inside the player's inventory/data folder
-    local function isPetInInventory(petName)
-        local success, found = pcall(function()
-            local inventories = ReplicatedStorage:FindFirstChild("Inventories") or player:FindFirstChild("Inventory") or ReplicatedStorage:FindFirstChild("PlayerInventories")
-            if not inventories then
-                inventories = player:FindFirstChild("Data") and player.Data:FindFirstChild("Pets")
-            end
-            
-            if inventories then
-                for _, item in ipairs(inventories:GetDescendants()) do
-                    if item.Name == petName or item:GetAttribute("PetName") == petName or item.Value == petName then
-                        return true
-                    end
-                end
-            end
-            return true
-        end)
-        return success and found
-    end
 
     -- Discord Webhook Sender
     local function sendDiscordEmbed(username, petName, rarity, price)
@@ -182,7 +161,7 @@ return function(Config)
         local emptyTimeStart = nil
 
         while true do
-            task.wait(0.1)
+            task.wait(0.2)
             
             local character = player.Character
             if not character or not character:FindFirstChild("HumanoidRootPart") then
@@ -227,19 +206,18 @@ return function(Config)
 
                     local rootPart = spawnModel:FindFirstChild("RootPart") or spawnModel.PrimaryPart or spawnModel:FindFirstChildWhichIsA("BasePart")
 
-                    -- Attempt to prompt/buy and loop properly for future spawns
-                    while spawnModel.Parent do
+                    local attempts = 0
+                    while spawnModel.Parent and attempts < 30 do
+                        attempts = attempts + 1
                         local currentOwner = petRef:GetAttribute("OwnerUserId")
+                        
                         if currentOwner == player.UserId then
                             local petName = petRef:GetAttribute("PetName") or "Unknown"
                             local rarity = petRef:GetAttribute("Rarity") or "Common"
                             local price = petRef:GetAttribute("Price") or "0"
 
-                            task.wait(0.2)
-                            if isPetInInventory(petName) then
-                                showNotification(petName, rarity, price)
-                                sendDiscordEmbed(player.Name, petName, rarity, price)
-                            end
+                            showNotification(petName, rarity, price)
+                            sendDiscordEmbed(player.Name, petName, rarity, price)
                             break
                         end
 
@@ -257,9 +235,8 @@ return function(Config)
                             end
                         end)
 
-                        task.wait(0.05)
+                        task.wait(0.1)
                         
-                        -- Break out if model was destroyed/caught so it moves on to the next pet instead of freezing
                         if not spawnModel.Parent or not petRef.Parent then
                             break
                         end
