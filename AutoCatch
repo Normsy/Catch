@@ -13,6 +13,16 @@ local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
+--// Remove an older copy so the START button/state cannot be left on STOP
+pcall(function()
+    local oldGui = game:GetService("CoreGui"):FindFirstChild("NORMSMinimalFarmer")
+    if oldGui then oldGui:Destroy() end
+end)
+pcall(function()
+    local oldGui = LocalPlayer:FindFirstChildOfClass("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("NORMSMinimalFarmer")
+    if oldGui then oldGui:Destroy() end
+end)
+
 --// MINIMAL UI
 local gui = Instance.new("ScreenGui")
 gui.Name = "NORMSMinimalFarmer"
@@ -246,6 +256,11 @@ local AntiAFKConnection = LocalPlayer.Idled:Connect(function()
 end)
 
 local Farming = false
+
+-- Always initialize the visible control as START/idle.
+button.Text = "START"
+button.BackgroundColor3 = Color3.fromRGB(57,255,20)
+button.TextColor3 = Color3.fromRGB(10,10,10)
 local CurrentTarget = nil
 local CurrentTargetUID = nil
 local CurrentTargetIsland = nil
@@ -511,7 +526,6 @@ end
 local function stopFarm()
     Farming = false
     SetNoClip(false)
-    StopSmoothHorseFollow()
     SetCharacterAnchored(false)
     FarmGeneration += 1
     CurrentTarget = nil
@@ -519,37 +533,11 @@ local function stopFarm()
     CurrentTargetIsland = nil
     button.Text = "START"
     button.BackgroundColor3 = Color3.fromRGB(57,255,20)
+    button.TextColor3 = Color3.fromRGB(10,10,10)
     status.Text = "Idle"
     status.TextColor3 = Color3.fromRGB(150,155,165)
 end
 
-local SmoothFollowConnection = nil
-
-local function StartSmoothHorseFollow(root, targetPart)
-    if SmoothFollowConnection then
-        SmoothFollowConnection:Disconnect()
-        SmoothFollowConnection = nil
-    end
-
-    SmoothFollowConnection = RunService.RenderStepped:Connect(function()
-        if not CharacterAnchored or not Farming or not root or not root.Parent or not targetPart or not targetPart.Parent then
-            return
-        end
-
-        -- Old-script anchor behavior: keep the character anchored directly
-        -- to the moving horse rather than using Lerp.
-        pcall(function()
-            root.CFrame = targetPart.CFrame * HORSE_OFFSET
-        end)
-    end)
-end
-
-local function StopSmoothHorseFollow()
-    if SmoothFollowConnection then
-        SmoothFollowConnection:Disconnect()
-        SmoothFollowConnection = nil
-    end
-end
 
 local function startFarm()
     if Farming then return end
@@ -643,7 +631,6 @@ local function startFarm()
                     SetCharacterAnchored(true)
                     status.Text = "Locked on: " .. target.Name
                     status.TextColor3 = Color3.fromRGB(57,255,20)
-                    StartSmoothHorseFollow(root, targetPart)
                     task.wait(0.08)
 
                     local caught = false
@@ -651,8 +638,7 @@ local function startFarm()
                     while Farming and myGeneration == FarmGeneration and target.Model.Parent and tick() < catchDeadline do
                         if GetCurrentPlayerIsland() ~= target.Island then break end
 
-                        -- Smooth follow runs every render frame while anchored.
-                        -- This loop only handles the click timing.
+                        -- Character stays anchored; no CFrame follow loop is needed.
                         ScreenClick()
                         status.Text = "Catching: " .. target.Name
                         status.TextColor3 = Color3.fromRGB(57,255,20)
@@ -665,8 +651,7 @@ local function startFarm()
 
                         task.wait(CATCH_INTERVAL)
                     end
-                    StopSmoothHorseFollow()
-                    SetCharacterAnchored(false)
+                                    SetCharacterAnchored(false)
                     invalidate()
                     if caught then
                         status.Text = "Caught: " .. target.Name
@@ -707,7 +692,6 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 end)
 
 LocalPlayer.CharacterRemoving:Connect(function()
-    StopSmoothHorseFollow()
     CharacterAnchored = false
     CurrentTarget = nil
     CurrentTargetUID = nil
