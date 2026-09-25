@@ -621,10 +621,19 @@ local function startFarm()
                     continue
                 end
 
+                -- Copy the old tracker movement behavior: anchor the character BEFORE
+                -- tweening. This prevents physics/collision correction from making the
+                -- character shake when the route passes below terrain.
+                humanoid.PlatformStand = true
+                root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                root.Anchored = true
+                CharacterAnchored = true
+
                 local targetCFrame = targetPart.CFrame * HORSE_OFFSET
                 local distance = (root.Position - targetCFrame.Position).Magnitude
                 local tweenTime = math.max(distance / TWEEN_SPEED, 0.08)
-                local tween = TweenService:Create(root, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), {CFrame=targetCFrame})
+                local tween = TweenService:Create(root, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {CFrame=targetCFrame})
                 tween:Play()
 
                 while tween.PlaybackState == Enum.PlaybackState.Playing and Farming and myGeneration == FarmGeneration do
@@ -636,8 +645,8 @@ local function startFarm()
                 end
 
                 if Farming and myGeneration == FarmGeneration and target.Model.Parent and GetCurrentPlayerIsland() == target.Island then
-                    -- Match the old tracker behavior: position 3 studs above the horse,
-                    -- weld the character to the horse, then anchor the character.
+                    -- The tween is finished. Snap once to the exact position above the
+                    -- horse, weld there, and keep the character anchored. No follow loop.
                     pcall(function()
                         root.CFrame = targetPart.CFrame * HORSE_OFFSET
                         if activeWeld then
@@ -650,7 +659,8 @@ local function startFarm()
                         activeWeld.Part1 = targetPart
                         activeWeld.Parent = root
                     end)
-                    SetCharacterAnchored(true)
+                    root.Anchored = true
+                    CharacterAnchored = true
                     status.Text = "Locked on: " .. target.Name
                     status.TextColor3 = Color3.fromRGB(57,255,20)
                     task.wait(0.08)
