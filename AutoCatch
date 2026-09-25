@@ -12,6 +12,83 @@ local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
+--// MINIMAL UI
+local gui = Instance.new("ScreenGui")
+gui.Name = "NORMSMinimalFarmer"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local parentOk = pcall(function()
+    gui.Parent = game:GetService("CoreGui")
+end)
+if not parentOk or not gui.Parent then
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local frame = Instance.new("Frame")
+frame.Name = "Main"
+frame.Size = UDim2.fromOffset(230, 115)
+frame.Position = UDim2.new(0, 20, 0.5, -58)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, -20, 0, 28)
+title.Position = UDim2.fromOffset(10, 6)
+title.Font = Enum.Font.GothamBold
+title.Text = "NORMS FARM"
+title.TextSize = 16
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+local button = Instance.new("TextButton")
+button.Name = "StartButton"
+button.Size = UDim2.fromOffset(95, 38)
+button.Position = UDim2.fromOffset(10, 38)
+button.BackgroundColor3 = Color3.fromRGB(57,255,20)
+button.TextColor3 = Color3.fromRGB(10,10,10)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 14
+button.Text = "START"
+button.AutoButtonColor = true
+button.Parent = frame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 7)
+buttonCorner.Parent = button
+
+local islandText = Instance.new("TextLabel")
+islandText.BackgroundTransparency = 1
+islandText.Size = UDim2.fromOffset(105, 22)
+islandText.Position = UDim2.fromOffset(115, 39)
+islandText.Font = Enum.Font.Gotham
+islandText.Text = "Island: ?"
+islandText.TextSize = 12
+islandText.TextColor3 = Color3.fromRGB(190,190,195)
+islandText.TextXAlignment = Enum.TextXAlignment.Left
+islandText.Parent = frame
+
+local status = Instance.new("TextLabel")
+status.BackgroundTransparency = 1
+status.Size = UDim2.fromOffset(205, 30)
+status.Position = UDim2.fromOffset(10, 78)
+status.Font = Enum.Font.Gotham
+status.Text = "Idle"
+status.TextSize = 12
+status.TextColor3 = Color3.fromRGB(150,155,165)
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.TextWrapped = true
+status.Parent = frame
+
+--// END MINIMAL UI
+
 --// SETTINGS
 local SCAN_INTERVAL = 0.20
 local CATCH_INTERVAL = 0.50
