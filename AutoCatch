@@ -9,6 +9,7 @@ local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -27,7 +28,7 @@ end
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
-frame.Size = UDim2.fromOffset(230, 115)
+frame.Size = UDim2.fromOffset(250, 132)
 frame.Position = UDim2.new(0, 20, 0.5, -58)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
 frame.BorderSizePixel = 0
@@ -77,7 +78,7 @@ islandText.Parent = frame
 
 local status = Instance.new("TextLabel")
 status.BackgroundTransparency = 1
-status.Size = UDim2.fromOffset(205, 30)
+status.Size = UDim2.fromOffset(225, 30)
 status.Position = UDim2.fromOffset(10, 78)
 status.Font = Enum.Font.Gotham
 status.Text = "Idle"
@@ -86,6 +87,105 @@ status.TextColor3 = Color3.fromRGB(150,155,165)
 status.TextXAlignment = Enum.TextXAlignment.Left
 status.TextWrapped = true
 status.Parent = frame
+
+--// MOVABLE CLICK SIGHT
+local sight = Instance.new("Frame")
+sight.Name = "ClickSight"
+sight.Size = UDim2.fromOffset(34, 34)
+sight.Position = UDim2.new(0.5, -17, 0.5, -17)
+sight.BackgroundTransparency = 1
+sight.BorderSizePixel = 0
+sight.Active = true
+sight.ZIndex = 20
+sight.Parent = gui
+
+local sightOuter = Instance.new("Frame")
+sightOuter.Size = UDim2.fromScale(1, 1)
+sightOuter.BackgroundTransparency = 1
+sightOuter.BorderSizePixel = 0
+sightOuter.Parent = sight
+
+local function makeSightLine(size, position)
+    local line = Instance.new("Frame")
+    line.Size = size
+    line.Position = position
+    line.BorderSizePixel = 0
+    line.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    line.BackgroundTransparency = 0.15
+    line.ZIndex = 21
+    line.Parent = sightOuter
+    return line
+end
+
+makeSightLine(UDim2.fromOffset(34, 2), UDim2.fromOffset(0, 16))
+makeSightLine(UDim2.fromOffset(2, 34), UDim2.fromOffset(16, 0))
+
+local sightDot = Instance.new("Frame")
+sightDot.Size = UDim2.fromOffset(4, 4)
+sightDot.Position = UDim2.fromOffset(15, 15)
+sightDot.BorderSizePixel = 0
+sightDot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+sightDot.ZIndex = 22
+sightDot.Parent = sightOuter
+
+local sightDragging = false
+local sightDragInput = nil
+local sightDragStart = nil
+local sightStartPos = nil
+
+sight.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        sightDragging = true
+        sightDragInput = input
+        sightDragStart = input.Position
+        sightStartPos = sight.Position
+    end
+end)
+
+sight.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+        sightDragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not sightDragging or input ~= sightDragInput then return end
+    local delta = input.Position - sightDragStart
+    sight.Position = UDim2.new(
+        sightStartPos.X.Scale,
+        sightStartPos.X.Offset + delta.X,
+        sightStartPos.Y.Scale,
+        sightStartPos.Y.Offset + delta.Y
+    )
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input == sightDragInput
+        or input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+        sightDragging = false
+        sightDragInput = nil
+    end
+end)
+
+local function GetSightScreenPosition()
+    local pos = sight.AbsolutePosition
+    local size = sight.AbsoluteSize
+    return math.floor(pos.X + size.X * 0.5), math.floor(pos.Y + size.Y * 0.5)
+end
+
+local sightHint = Instance.new("TextLabel")
+sightHint.BackgroundTransparency = 1
+sightHint.Size = UDim2.fromOffset(225, 16)
+sightHint.Position = UDim2.fromOffset(10, 110)
+sightHint.Font = Enum.Font.Gotham
+sightHint.Text = "Drag the crosshair to set click point"
+sightHint.TextSize = 10
+sightHint.TextColor3 = Color3.fromRGB(120,125,135)
+sightHint.TextXAlignment = Enum.TextXAlignment.Left
+sightHint.Parent = frame
 
 --// END MINIMAL UI
 
@@ -300,9 +400,7 @@ local function ScanHorses()
 
     local function scanContainer(container, islandName)
         for _, node in ipairs(container:GetChildren()) do
-            if node:IsA("Folder") or (node:IsA("Model") and not CollectionService:HasTag(node, "Animal")) then
-                scanContainer(node, islandName)
-            elseif isHorse(node) and not isOwned(node) and not isInShop(node) then
+            if isHorse(node) and not isOwned(node) and not isInShop(node) then
                 local pivot = getHorsePivot(node)
                 if pivot then
                     local breed, rarity = getHorseBreed(node)
@@ -315,9 +413,15 @@ local function ScanHorses()
                         Unique=unique,
                         Position=pivot.Position,
                         Pivot=pivot,
-                        UID=node:GetDebugId() or (node.Name .. "_" .. math.floor(pivot.Position.X) .. "_" .. math.floor(pivot.Position.Z))
+                        UID=(function()
+                        local ok, id = pcall(function() return node:GetDebugId() end)
+                        if ok and id then return id end
+                        return node:GetFullName() .. "_" .. math.floor(pivot.Position.X) .. "_" .. math.floor(pivot.Position.Z)
+                    end)()
                     })
                 end
+            elseif node:IsA("Folder") or node:IsA("Model") then
+                scanContainer(node, islandName)
             end
         end
     end
@@ -385,10 +489,7 @@ end
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local function ScreenClick()
-    local camera = Workspace.CurrentCamera
-    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
-    local x = math.floor(viewport.X * 0.5)
-    local y = math.floor(viewport.Y * 0.5)
+    local x, y = GetSightScreenPosition()
 
     return pcall(function()
         VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
@@ -410,6 +511,7 @@ end
 local function stopFarm()
     Farming = false
     SetNoClip(false)
+    StopSmoothHorseFollow()
     SetCharacterAnchored(false)
     FarmGeneration += 1
     CurrentTarget = nil
@@ -419,6 +521,33 @@ local function stopFarm()
     button.BackgroundColor3 = Color3.fromRGB(57,255,20)
     status.Text = "Idle"
     status.TextColor3 = Color3.fromRGB(150,155,165)
+end
+
+local SmoothFollowConnection = nil
+
+local function StartSmoothHorseFollow(root, targetPart)
+    if SmoothFollowConnection then
+        SmoothFollowConnection:Disconnect()
+        SmoothFollowConnection = nil
+    end
+
+    SmoothFollowConnection = RunService.RenderStepped:Connect(function()
+        if not CharacterAnchored or not Farming or not root or not root.Parent or not targetPart or not targetPart.Parent then
+            return
+        end
+
+        local goal = targetPart.CFrame * HORSE_OFFSET
+        -- Keep the character anchored, but ease toward the horse every frame
+        -- instead of repeatedly snapping/teleporting to its CFrame.
+        root.CFrame = root.CFrame:Lerp(goal, 0.22)
+    end)
+end
+
+local function StopSmoothHorseFollow()
+    if SmoothFollowConnection then
+        SmoothFollowConnection:Disconnect()
+        SmoothFollowConnection = nil
+    end
 end
 
 local function startFarm()
@@ -513,6 +642,7 @@ local function startFarm()
                     SetCharacterAnchored(true)
                     status.Text = "Locked on: " .. target.Name
                     status.TextColor3 = Color3.fromRGB(57,255,20)
+                    StartSmoothHorseFollow(root, targetPart)
                     task.wait(0.08)
 
                     local caught = false
@@ -520,13 +650,8 @@ local function startFarm()
                     while Farming and myGeneration == FarmGeneration and target.Model.Parent and tick() < catchDeadline do
                         if GetCurrentPlayerIsland() ~= target.Island then break end
 
-                        -- Follow the horse while the character remains anchored.
-                        pcall(function()
-                            if targetPart and targetPart.Parent then
-                                root.CFrame = targetPart.CFrame * HORSE_OFFSET
-                            end
-                        end)
-
+                        -- Smooth follow runs every render frame while anchored.
+                        -- This loop only handles the click timing.
                         ScreenClick()
                         status.Text = "Catching: " .. target.Name
                         status.TextColor3 = Color3.fromRGB(57,255,20)
@@ -539,6 +664,7 @@ local function startFarm()
 
                         task.wait(CATCH_INTERVAL)
                     end
+                    StopSmoothHorseFollow()
                     SetCharacterAnchored(false)
                     invalidate()
                     if caught then
@@ -580,6 +706,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
 end)
 
 LocalPlayer.CharacterRemoving:Connect(function()
+    StopSmoothHorseFollow()
     CharacterAnchored = false
     CurrentTarget = nil
     CurrentTargetUID = nil
