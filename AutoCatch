@@ -536,10 +536,11 @@ local function StartSmoothHorseFollow(root, targetPart)
             return
         end
 
-        local goal = targetPart.CFrame * HORSE_OFFSET
-        -- Keep the character anchored, but ease toward the horse every frame
-        -- instead of repeatedly snapping/teleporting to its CFrame.
-        root.CFrame = root.CFrame:Lerp(goal, 0.22)
+        -- Old-script anchor behavior: keep the character anchored directly
+        -- to the moving horse rather than using Lerp.
+        pcall(function()
+            root.CFrame = targetPart.CFrame * HORSE_OFFSET
+        end)
     end)
 end
 
