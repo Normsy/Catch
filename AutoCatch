@@ -102,12 +102,12 @@ status.Parent = frame
 local sight = Instance.new("Frame")
 sight.Name = "ClickSight"
 sight.Size = UDim2.fromOffset(34, 34)
-sight.Position = UDim2.new(0.5, -17, 0.5, -17)
+sight.Position = UDim2.new(0, 118, 0, -28)
 sight.BackgroundTransparency = 1
 sight.BorderSizePixel = 0
 sight.Active = true
-sight.ZIndex = 20
-sight.Parent = gui
+sight.ZIndex = 50
+sight.Parent = frame
 
 local sightOuter = Instance.new("Frame")
 sightOuter.Size = UDim2.fromScale(1, 1)
@@ -205,6 +205,7 @@ local CATCH_INTERVAL = 0.50
 local TWEEN_SPEED = 90
 local HORSE_OFFSET = CFrame.new(0, 3, 0)
 local CharacterAnchored = false
+local activeWeld = nil
 
 --// NOCLIP (from the original tracker behavior)
 local NoClipEnabled = false
@@ -517,9 +518,22 @@ local function SetCharacterAnchored(anchored)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
     pcall(function()
-        root.Anchored = anchored
-        CharacterAnchored = anchored
+        if not anchored then
+            if activeWeld then
+                activeWeld:Destroy()
+                activeWeld = nil
+            end
+            root.Anchored = false
+            CharacterAnchored = false
+            return
+        end
+
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        root.Anchored = true
+        CharacterAnchored = true
     end)
 end
 
@@ -622,12 +636,20 @@ local function startFarm()
                 end
 
                 if Farming and myGeneration == FarmGeneration and target.Model.Parent and GetCurrentPlayerIsland() == target.Island then
-                    pcall(function() root.CFrame = targetPart.CFrame * HORSE_OFFSET end)
-
-                    -- The player manually equips the lasso before starting the farmer.
-                    -- Once we reach the horse, anchor the character and keep its position
-                    -- attached to the moving horse while sending a primary screen click
-                    -- every 0.5 seconds.
+                    -- Match the old tracker behavior: position 3 studs above the horse,
+                    -- weld the character to the horse, then anchor the character.
+                    pcall(function()
+                        root.CFrame = targetPart.CFrame * HORSE_OFFSET
+                        if activeWeld then
+                            activeWeld:Destroy()
+                            activeWeld = nil
+                        end
+                        activeWeld = Instance.new("WeldConstraint")
+                        activeWeld.Name = "HorseTrackerWeld"
+                        activeWeld.Part0 = root
+                        activeWeld.Part1 = targetPart
+                        activeWeld.Parent = root
+                    end)
                     SetCharacterAnchored(true)
                     status.Text = "Locked on: " .. target.Name
                     status.TextColor3 = Color3.fromRGB(57,255,20)
