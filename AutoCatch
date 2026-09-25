@@ -23,8 +23,127 @@ pcall(function()
     if oldGui then oldGui:Destroy() end
 end)
 
+--// QUESTION GATE
+--// The main NORMS UI stays disabled until the user answers the question.
+local gui
+local gateGui = Instance.new("ScreenGui")
+gateGui.Name = "NORMSQuestionGate"
+gateGui.ResetOnSpawn = false
+gateGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local gateParentOk = pcall(function()
+    gateGui.Parent = game:GetService("CoreGui")
+end)
+if not gateParentOk or not gateGui.Parent then
+    gateGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local gateFrame = Instance.new("Frame")
+gateFrame.Name = "QuestionFrame"
+gateFrame.Size = UDim2.fromOffset(310, 190)
+gateFrame.Position = UDim2.new(0.5, -155, 0.5, -95)
+gateFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
+gateFrame.BorderSizePixel = 0
+gateFrame.Parent = gateGui
+
+local gateCorner = Instance.new("UICorner")
+gateCorner.CornerRadius = UDim.new(0, 12)
+gateCorner.Parent = gateFrame
+
+local question = Instance.new("TextLabel")
+question.BackgroundTransparency = 1
+question.Size = UDim2.new(1, -30, 0, 55)
+question.Position = UDim2.fromOffset(15, 18)
+question.Font = Enum.Font.GothamBold
+question.Text = "Pogi ba si Clark?"
+question.TextSize = 22
+question.TextColor3 = Color3.fromRGB(255,255,255)
+question.TextWrapped = true
+question.Parent = gateFrame
+
+local instruction = Instance.new("TextLabel")
+instruction.BackgroundTransparency = 1
+instruction.Size = UDim2.new(1, -30, 0, 24)
+instruction.Position = UDim2.fromOffset(15, 68)
+instruction.Font = Enum.Font.Gotham
+instruction.Text = "Pumili ng isang sagot:"
+instruction.TextSize = 13
+instruction.TextColor3 = Color3.fromRGB(175,175,185)
+instruction.Parent = gateFrame
+
+local ooBox = Instance.new("TextButton")
+ooBox.Name = "OoCheckbox"
+ooBox.Size = UDim2.fromOffset(125, 48)
+ooBox.Position = UDim2.fromOffset(20, 108)
+ooBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+ooBox.BorderSizePixel = 0
+ooBox.AutoButtonColor = true
+ooBox.Font = Enum.Font.GothamBold
+ooBox.TextSize = 15
+ooBox.TextColor3 = Color3.fromRGB(255,255,255)
+ooBox.Text = "â  Oo"
+ooBox.Parent = gateFrame
+
+local hindiBox = Instance.new("TextButton")
+hindiBox.Name = "HindiCheckbox"
+hindiBox.Size = UDim2.fromOffset(125, 48)
+hindiBox.Position = UDim2.fromOffset(165, 108)
+hindiBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+hindiBox.BorderSizePixel = 0
+hindiBox.AutoButtonColor = true
+hindiBox.Font = Enum.Font.GothamBold
+hindiBox.TextSize = 15
+hindiBox.TextColor3 = Color3.fromRGB(255,255,255)
+hindiBox.Text = "â  Hindi"
+hindiBox.Parent = gateFrame
+
+local ooCorner = Instance.new("UICorner")
+ooCorner.CornerRadius = UDim.new(0, 8)
+ooCorner.Parent = ooBox
+
+local hindiCorner = Instance.new("UICorner")
+hindiCorner.CornerRadius = UDim.new(0, 8)
+hindiCorner.Parent = hindiBox
+
+local selectedAnswer = nil
+
+local function selectOo()
+    selectedAnswer = "Oo"
+    ooBox.Text = "â  Oo"
+    ooBox.BackgroundColor3 = Color3.fromRGB(57, 150, 70)
+    hindiBox.Text = "â  Hindi"
+    hindiBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+end
+
+ooBox.MouseButton1Click:Connect(function()
+    -- Only one checkbox can be selected at a time.
+    selectOo()
+
+    task.wait(0.15)
+    if selectedAnswer == "Oo" then
+        if gui then
+            gui.Enabled = true
+        end
+        gateGui:Destroy()
+    end
+end)
+
+hindiBox.MouseButton1Click:Connect(function()
+    -- Select Hindi exclusively, then kick before the main NORMS UI loads.
+    selectedAnswer = "Hindi"
+    ooBox.Text = "â  Oo"
+    ooBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    hindiBox.Text = "â  Hindi"
+    hindiBox.BackgroundColor3 = Color3.fromRGB(150, 60, 60)
+
+    task.wait(0.15)
+    if selectedAnswer == "Hindi" then
+        LocalPlayer:Kick("You selected Hindi.")
+    end
+end)
+
 --// MINIMAL UI
-local gui = Instance.new("ScreenGui")
+gui = Instance.new("ScreenGui")
 gui.Name = "NORMSMinimalFarmer"
 gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -35,6 +154,8 @@ end)
 if not parentOk or not gui.Parent then
     gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
+-- Keep the actual NORMS UI hidden until the user selects Oo.
+gui.Enabled = false
 
 local frame = Instance.new("Frame")
 frame.Name = "Main"
