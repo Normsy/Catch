@@ -81,7 +81,7 @@ ooBox.AutoButtonColor = true
 ooBox.Font = Enum.Font.GothamBold
 ooBox.TextSize = 15
 ooBox.TextColor3 = Color3.fromRGB(255,255,255)
-ooBox.Text = "â  Oo"
+ooBox.Text = "[ ]  Oo"
 ooBox.Parent = gateFrame
 
 local hindiBox = Instance.new("TextButton")
@@ -94,7 +94,7 @@ hindiBox.AutoButtonColor = true
 hindiBox.Font = Enum.Font.GothamBold
 hindiBox.TextSize = 15
 hindiBox.TextColor3 = Color3.fromRGB(255,255,255)
-hindiBox.Text = "â  Hindi"
+hindiBox.Text = "[ ]  Hindi"
 hindiBox.Parent = gateFrame
 
 local ooCorner = Instance.new("UICorner")
@@ -109,9 +109,9 @@ local selectedAnswer = nil
 
 local function selectOo()
     selectedAnswer = "Oo"
-    ooBox.Text = "â  Oo"
+    ooBox.Text = "[X]  Oo"
     ooBox.BackgroundColor3 = Color3.fromRGB(57, 150, 70)
-    hindiBox.Text = "â  Hindi"
+    hindiBox.Text = "[ ]  Hindi"
     hindiBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
 end
 
@@ -131,9 +131,9 @@ end)
 hindiBox.MouseButton1Click:Connect(function()
     -- Select Hindi exclusively, then kick before the main NORMS UI loads.
     selectedAnswer = "Hindi"
-    ooBox.Text = "â  Oo"
+    ooBox.Text = "[ ]  Oo"
     ooBox.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
-    hindiBox.Text = "â  Hindi"
+    hindiBox.Text = "[X]  Hindi"
     hindiBox.BackgroundColor3 = Color3.fromRGB(150, 60, 60)
 
     task.wait(0.15)
@@ -186,7 +186,7 @@ minimizeButton.Name = "MinimizeButton"
 minimizeButton.Size = UDim2.fromOffset(28, 26)
 minimizeButton.Position = UDim2.new(1, -34, 0, 7)
 minimizeButton.BackgroundTransparency = 1
-minimizeButton.Text = "â"
+minimizeButton.Text = "-"
 minimizeButton.TextColor3 = Color3.fromRGB(220,220,225)
 minimizeButton.Font = Enum.Font.GothamBold
 minimizeButton.TextSize = 20
@@ -213,7 +213,7 @@ local function SetMinimized(value)
         minimizeButton.Text = "+"
     else
         frame.Size = UDim2.fromOffset(250, 132)
-        minimizeButton.Text = "â"
+        minimizeButton.Text = "-"
     end
 end
 
