@@ -1,6 +1,6 @@
 --// NORMS MINIMAL HORSE FARMER
 --// No RemoteEvent / RemoteFunction usage.
---// Background horse scan + manual island travel + local Tool activation.
+--// Background horse scan + manual island travel + manual lasso + screen clicking.
 --// Press START after manually travelling to the island you want to farm.
 
 local Players = game:GetService("Players")
@@ -14,7 +14,7 @@ local LocalPlayer = Players.LocalPlayer
 
 --// SETTINGS
 local SCAN_INTERVAL = 0.20
-local CATCH_INTERVAL = 0.25
+local CATCH_INTERVAL = 0.50
 local TWEEN_SPEED = 90
 local HORSE_OFFSET = CFrame.new(0, 3, 0)
 local CharacterAnchored = false
@@ -302,164 +302,7 @@ local function GetCurrentPlayerIsland()
     return closestName
 end
 
---// LASSO INPUT WITHOUT REMOTES
---// Catching uses simulated primary input (mouse/tap) at the center of the screen.
---// If input simulation is unavailable, it falls back to normal Tool:Activate().
-local function FindLassoTool()
-    local char = LocalPlayer.Character
-    local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
-    local wanted = {"lasso", "wooden lasso", "tin lasso", "cooper lasso", "bronze lasso", "iron lasso", "silver lasso", "clear quartz lasso", "gold lasso", "ruby lasso", "ice lasso", "diamond lasso", "obsidian lasso", "moonstone lasso", "topaz lasso", "emerald lasso", "amethyst lasso"}
-
-    local function check(container)
-        if not container then return nil end
-        for _, obj in ipairs(container:GetChildren()) do
-            if obj:IsA("Tool") then
-                local n = obj.Name:lower()
-                for _, wantedName in ipairs(wanted) do
-                    if n == wantedName or n:find("lasso", 1, true) then
-                        return obj
-                    end
-                end
-            end
-        end
-    end
-
-    return check(char) or check(backpack)
-end
-
-local function ActivateLasso()
-    local tool = FindLassoTool()
-    if not tool then
-        return false, "Lasso tool not found"
-    end
-
-    local char = LocalPlayer.Character
-    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-    if not humanoid then
-        return false, "Humanoid not found"
-    end
-
-    if tool.Parent ~= char then
-        pcall(function() humanoid:EquipTool(tool) end)
-        task.wait(0.08)
-    end
-
-    -- Simulate the same primary mouse/tap action a player would use.
-    -- This is input simulation, not a RemoteEvent/RemoteFunction call.
-    local vim = game:GetService("VirtualInputManager")
-    local camera = Workspace.CurrentCamera
-    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
-    local x = math.floor(viewport.X * 0.5)
-    local y = math.floor(viewport.Y * 0.5)
-
-    local inputWorked = false
-    pcall(function()
-        vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
-        task.wait(0.035)
-        vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
-        inputWorked = true
-    end)
-
-    -- Fallback for environments where VirtualInputManager is unavailable.
-    if not inputWorked then
-        pcall(function() tool:Activate() end)
-    end
-
-    return true
-end
-
---// MINIMAL UI
-local gui = Instance.new("ScreenGui")
-gui.Name = "NORMS_MinimalFarm"
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-pcall(function() gui.Parent = game:GetService("CoreGui") end)
-if not gui.Parent then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(190, 72)
-frame.Position = UDim2.new(0, 16, 0.5, -36)
-frame.BackgroundColor3 = Color3.fromRGB(18,18,24)
-frame.BorderSizePixel = 0
-frame.Parent = gui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = frame
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -16, 0, 20)
-title.Position = UDim2.fromOffset(8, 5)
-title.BackgroundTransparency = 1
-title.Text = "NORMS FARM"
-title.TextColor3 = Color3.fromRGB(235,235,240)
-title.TextSize = 11
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
-title.Parent = frame
-
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(0.58, -8, 0, 15)
-status.Position = UDim2.fromOffset(8, 28)
-status.BackgroundTransparency = 1
-status.Text = "Idle"
-status.TextColor3 = Color3.fromRGB(150,155,165)
-status.TextSize = 8
-status.Font = Enum.Font.Gotham
-status.TextXAlignment = Enum.TextXAlignment.Left
-status.TextTruncate = Enum.TextTruncate.AtEnd
-status.Parent = frame
-
-local button = Instance.new("TextButton")
-button.Size = UDim2.fromOffset(62, 28)
-button.Position = UDim2.new(1, -70, 0, 34)
-button.BackgroundColor3 = Color3.fromRGB(57,255,20)
-button.BorderSizePixel = 0
-button.Text = "START"
-button.TextColor3 = Color3.fromRGB(0,0,0)
-button.TextSize = 9
-button.Font = Enum.Font.GothamBold
-button.Parent = frame
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 5)
-btnCorner.Parent = button
-
-local islandText = Instance.new("TextLabel")
-islandText.Size = UDim2.new(0.58, -8, 0, 15)
-islandText.Position = UDim2.fromOffset(8, 44)
-islandText.BackgroundTransparency = 1
-islandText.Text = "Island: ?"
-islandText.TextColor3 = Color3.fromRGB(150,155,165)
-islandText.TextSize = 8
-islandText.Font = Enum.Font.Gotham
-islandText.TextXAlignment = Enum.TextXAlignment.Left
-islandText.TextTruncate = Enum.TextTruncate.AtEnd
-islandText.Parent = frame
-
---// DRAGGABLE MINIMAL UI
-local dragging, dragStart, startPos
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-    end
-end)
-frame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-local function SetCharacterAnchored(anchored)
+--// SCREEN CLICK INPUT\n--// The player manually equips the lasso. This script does not search for, equip,\n--// or activate a Tool. It only sends a primary screen/mouse click at 0.5s intervals.\nlocal VirtualInputManager = game:GetService("VirtualInputManager")\n\nlocal function ScreenClick()\n    local camera = Workspace.CurrentCamera\n    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)\n    local x = math.floor(viewport.X * 0.5)\n    local y = math.floor(viewport.Y * 0.5)\n\n    return pcall(function()\n        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)\n        task.wait(0.03)\n        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)\n    end)\nend\n\nlocal function SetCharacterAnchored(anchored)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
@@ -568,34 +411,38 @@ local function startFarm()
                 if Farming and myGeneration == FarmGeneration and target.Model.Parent and GetCurrentPlayerIsland() == target.Island then
                     pcall(function() root.CFrame = targetPart.CFrame * HORSE_OFFSET end)
 
-                    -- Anchor the character at the horse before starting the catch input.
-                    -- This keeps the player locked in position while the repeated screen/tap input runs.
+                    -- The player manually equips the lasso before starting the farmer.
+                    -- Once we reach the horse, anchor the character and keep its position
+                    -- attached to the moving horse while sending a primary screen click
+                    -- every 0.5 seconds.
                     SetCharacterAnchored(true)
                     status.Text = "Locked on: " .. target.Name
                     status.TextColor3 = Color3.fromRGB(57,255,20)
                     task.wait(0.08)
 
-                    -- Use the normal Tool activation path. No RemoteEvent is fired.
                     local caught = false
                     local catchDeadline = tick() + 8
                     while Farming and myGeneration == FarmGeneration and target.Model.Parent and tick() < catchDeadline do
                         if GetCurrentPlayerIsland() ~= target.Island then break end
-                        local ok = ActivateLasso()
-                        if not ok then
-                            status.Text = "Equip a lasso tool"
-                            status.TextColor3 = Color3.fromRGB(239,68,68)
-                            task.wait(0.5)
-                        else
-                            status.Text = "Catching: " .. target.Name
-                            status.TextColor3 = Color3.fromRGB(57,255,20)
-                            task.wait(CATCH_INTERVAL)
-                        end
 
-                        -- Horse normally disappears/changes owner after a successful catch.
+                        -- Follow the horse while the character remains anchored.
+                        pcall(function()
+                            if targetPart and targetPart.Parent then
+                                root.CFrame = targetPart.CFrame * HORSE_OFFSET
+                            end
+                        end)
+
+                        ScreenClick()
+                        status.Text = "Catching: " .. target.Name
+                        status.TextColor3 = Color3.fromRGB(57,255,20)
+
+                        -- Horse disappearance/ownership change is treated as success.
                         if not target.Model.Parent or isOwned(target.Model) then
                             caught = true
                             break
                         end
+
+                        task.wait(CATCH_INTERVAL)
                     end
                     SetCharacterAnchored(false)
                     invalidate()
