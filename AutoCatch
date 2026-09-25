@@ -216,19 +216,20 @@ local function SetNoClip(enabled)
     NoClipEnabled = enabled
 
     if enabled then
-        if NoClipConnection then return end
+        if NoClipConnection then
+            NoClipConnection:Disconnect()
+        end
 
+        -- Match the old script: every Stepped frame, disable collision on every
+        -- character BasePart. This prevents terrain/parts from physically fighting
+        -- the TweenService CFrame movement.
         NoClipConnection = RunService.Stepped:Connect(function()
-            if not NoClipEnabled then return end
             local char = LocalPlayer.Character
-            if not char then return end
+            if not NoClipEnabled or not char or not char.Parent then return end
 
-            for _, obj in ipairs(char:GetDescendants()) do
-                if obj:IsA("BasePart") then
-                    if NoClipStates[obj] == nil then
-                        NoClipStates[obj] = obj.CanCollide
-                    end
-                    obj.CanCollide = false
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
                 end
             end
         end)
@@ -238,9 +239,13 @@ local function SetNoClip(enabled)
             NoClipConnection = nil
         end
 
-        for part, previousState in pairs(NoClipStates) do
-            if part and part.Parent then
-                pcall(function() part.CanCollide = previousState end)
+        -- Match the old script's cleanup behavior.
+        local char = LocalPlayer.Character
+        if char and char.Parent then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.CanCollide = true
+                end
             end
         end
         table.clear(NoClipStates)
@@ -624,6 +629,10 @@ local function startFarm()
                 -- Copy the old tracker movement behavior: anchor the character BEFORE
                 -- tweening. This prevents physics/collision correction from making the
                 -- character shake when the route passes below terrain.
+                -- Old script movement order: NoClip + PlatformStand + anchored root,
+                -- then a pure TweenService CFrame tween. Do not repeatedly write CFrame
+                -- during the tween; that was the source of the shaky motion.
+                SetNoClip(true)
                 humanoid.PlatformStand = true
                 root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -632,15 +641,18 @@ local function startFarm()
 
                 local targetCFrame = targetPart.CFrame * HORSE_OFFSET
                 local distance = (root.Position - targetCFrame.Position).Magnitude
-                local tweenTime = math.max(distance / TWEEN_SPEED, 0.08)
+                local tweenTime = distance / TWEEN_SPEED
                 local tween = TweenService:Create(root, TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {CFrame=targetCFrame})
                 tween:Play()
 
                 while tween.PlaybackState == Enum.PlaybackState.Playing and Farming and myGeneration == FarmGeneration do
-                    if not target.Model.Parent or GetCurrentPlayerIsland() ~= target.Island then
+                    if not target.Model.Parent or GetCurrentPlayerIsland() ~= target.Island or humanoid.Health <= 0 then
                         tween:Cancel()
                         break
                     end
+                    -- Same velocity reset cadence as the old script, without touching CFrame.
+                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     task.wait(0.03)
                 end
 
