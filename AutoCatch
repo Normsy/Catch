@@ -131,7 +131,7 @@ local function checkUniqueHair(horse)
     local mane = normalizeValue(variants.maneColour)
     local tail = normalizeValue(variants.tailColour)
     if UniqueHairValues[mane] or UniqueHairValues[tail] then
-        return true, "✓"
+        return true, "â"
     end
     return false, "X"
 end
@@ -302,7 +302,25 @@ local function GetCurrentPlayerIsland()
     return closestName
 end
 
---// SCREEN CLICK INPUT\n--// The player manually equips the lasso. This script does not search for, equip,\n--// or activate a Tool. It only sends a primary screen/mouse click at 0.5s intervals.\nlocal VirtualInputManager = game:GetService("VirtualInputManager")\n\nlocal function ScreenClick()\n    local camera = Workspace.CurrentCamera\n    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)\n    local x = math.floor(viewport.X * 0.5)\n    local y = math.floor(viewport.Y * 0.5)\n\n    return pcall(function()\n        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)\n        task.wait(0.03)\n        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)\n    end)\nend\n\nlocal function SetCharacterAnchored(anchored)
+--// SCREEN CLICK INPUT
+--// The player manually equips the lasso. This script does not search for, equip,
+--// or activate a Tool. It only sends a primary screen/mouse click at 0.5s intervals.
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local function ScreenClick()
+    local camera = Workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+    local x = math.floor(viewport.X * 0.5)
+    local y = math.floor(viewport.Y * 0.5)
+
+    return pcall(function()
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+        task.wait(0.03)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    end)
+end
+
+local function SetCharacterAnchored(anchored)
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
@@ -377,7 +395,7 @@ local function startFarm()
             CurrentTarget = target.Model
             CurrentTargetUID = target.UID
             CurrentTargetIsland = target.Island
-            status.Text = "Target: " .. target.Name .. (target.Unique and " ★" or "")
+            status.Text = "Target: " .. target.Name .. (target.Unique and " â" or "")
             status.TextColor3 = Color3.fromRGB(57,255,20)
 
             local char = LocalPlayer.Character
