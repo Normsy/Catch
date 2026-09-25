@@ -7,6 +7,8 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CollectionService = game:GetService("CollectionService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -15,6 +17,56 @@ local SCAN_INTERVAL = 0.20
 local CATCH_INTERVAL = 0.25
 local TWEEN_SPEED = 90
 local HORSE_OFFSET = CFrame.new(0, 3, 0)
+local CharacterAnchored = false
+
+--// NOCLIP (from the original tracker behavior)
+local NoClipEnabled = false
+local NoClipConnection = nil
+local NoClipStates = {}
+
+local function SetNoClip(enabled)
+    NoClipEnabled = enabled
+
+    if enabled then
+        if NoClipConnection then return end
+
+        NoClipConnection = RunService.Stepped:Connect(function()
+            if not NoClipEnabled then return end
+            local char = LocalPlayer.Character
+            if not char then return end
+
+            for _, obj in ipairs(char:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    if NoClipStates[obj] == nil then
+                        NoClipStates[obj] = obj.CanCollide
+                    end
+                    obj.CanCollide = false
+                end
+            end
+        end)
+    else
+        if NoClipConnection then
+            NoClipConnection:Disconnect()
+            NoClipConnection = nil
+        end
+
+        for part, previousState in pairs(NoClipStates) do
+            if part and part.Parent then
+                pcall(function() part.CanCollide = previousState end)
+            end
+        end
+        table.clear(NoClipStates)
+    end
+end
+
+--// ANTI-AFK
+--// Uses Roblox's normal client-side idle notification path; no remotes are fired.
+local AntiAFKConnection = LocalPlayer.Idled:Connect(function()
+    pcall(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
+end)
 
 local Farming = false
 local CurrentTarget = nil
@@ -407,8 +459,20 @@ game:GetService("UserInputService").InputChanged:Connect(function(input)
     end
 end)
 
+local function SetCharacterAnchored(anchored)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    pcall(function()
+        root.Anchored = anchored
+        CharacterAnchored = anchored
+    end)
+end
+
 local function stopFarm()
     Farming = false
+    SetNoClip(false)
+    SetCharacterAnchored(false)
     FarmGeneration += 1
     CurrentTarget = nil
     CurrentTargetUID = nil
@@ -422,6 +486,7 @@ end
 local function startFarm()
     if Farming then return end
     Farming = true
+    SetNoClip(true)
     FarmGeneration += 1
     local myGeneration = FarmGeneration
     button.Text = "STOP"
@@ -503,6 +568,13 @@ local function startFarm()
                 if Farming and myGeneration == FarmGeneration and target.Model.Parent and GetCurrentPlayerIsland() == target.Island then
                     pcall(function() root.CFrame = targetPart.CFrame * HORSE_OFFSET end)
 
+                    -- Anchor the character at the horse before starting the catch input.
+                    -- This keeps the player locked in position while the repeated screen/tap input runs.
+                    SetCharacterAnchored(true)
+                    status.Text = "Locked on: " .. target.Name
+                    status.TextColor3 = Color3.fromRGB(57,255,20)
+                    task.wait(0.08)
+
                     -- Use the normal Tool activation path. No RemoteEvent is fired.
                     local caught = false
                     local catchDeadline = tick() + 8
@@ -525,6 +597,7 @@ local function startFarm()
                             break
                         end
                     end
+                    SetCharacterAnchored(false)
                     invalidate()
                     if caught then
                         status.Text = "Caught: " .. target.Name
@@ -532,6 +605,7 @@ local function startFarm()
                 end
             end
 
+            SetCharacterAnchored(false)
             CurrentTarget = nil
             CurrentTargetUID = nil
             CurrentTargetIsland = nil
@@ -555,7 +629,16 @@ task.spawn(function()
 end)
 
 --// Cleanly stop on character removal so movement state is never left active.
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.defer(function()
+        if Farming then
+            SetNoClip(true)
+        end
+    end)
+end)
+
 LocalPlayer.CharacterRemoving:Connect(function()
+    CharacterAnchored = false
     CurrentTarget = nil
     CurrentTargetUID = nil
     CurrentTargetIsland = nil
